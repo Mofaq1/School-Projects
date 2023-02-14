@@ -1,0 +1,118 @@
+---
+title: "Project 3 - Creating a dashboard using the flexdashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(gapminder)
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(DT)
+```
+
+
+# Page 1 
+
+### (a) Summarize and plot the median life expectancy (MLE) in 1952 for each of the 5 countries with the top MLE's and for each of the 5 countries with the bottom MLE's. You should have one summary table and one plot. Hint: Use the data in 1952 to find the top 5 countries and bottom 5 countries in MLE. Then, plot the MLE for each of the 10 countries. You should have 10 bars in one graph. 
+
+```{r}
+df1 <- gapminder %>% filter(year == 1952) %>% select(country, lifeExp) %>% arrange(desc(lifeExp)) %>% head(5)
+df2 <- gapminder %>% filter(year == 1952) %>% select(country, lifeExp) %>% arrange(lifeExp) %>% head(5)
+
+mydata <- rbind(df1, df2)
+
+ggplot(mydata, aes(x = country, y = lifeExp))+
+  geom_col(fill = "lightblue")+
+  labs(title = "Top five and Botton five Countries with highest and lowest MLE in 1952")+
+  theme(axis.text.x = element_text(angle = 30))
+
+```
+
+
+### Summary Table
+```{r}
+datatable(mydata)
+```
+
+> From the Graph and Table it is evident that the top five (Developed) countries have the life expectancy of almost double of bottom five (Developing) countries. 
+
+
+# Page 2 
+
+### (b) Summarize and plot the median life expectancy (MLE) in 2007 for each of the 5 countries with the top MLE's and for each of the 5 countries with the bottom MLE's. You should have one summary table and one plot for the 10 countries.
+
+```{r}
+df1 <- gapminder %>% filter(year == 2007) %>% select(country, lifeExp) %>% arrange(desc(lifeExp)) %>% head(5)
+df2 <- gapminder %>% filter(year == 2007) %>% select(country, lifeExp) %>% arrange(lifeExp) %>% head(5)
+
+mydata <- rbind(df1, df2)
+
+ggplot(mydata, aes(x = country, y = lifeExp))+
+  geom_col(fill = "cadetblue")+
+  labs(title = "Top five and Botton five Countries with highest and lowest MLE in 2007")+
+  theme(axis.text.x = element_text(angle = 30))
+
+```
+
+### Summary Table 
+```{r}
+datatable(mydata)
+```
+
+> It can be observed from the Graph and Table that life expectancy in some of the developing countries have improved since 1952 and they do not rank among the bottom five countries in 2007.
+
+# Page 3 
+
+### (c) Summarize and plot the median life expectancy in each year for the largest 5 countries in terms of 2007 population. You should have one summary table and one plot. Hint: Use the data in 2007 to find the top 5 countries in population. Then, plot MLE vs year for each of the 5 countries. You should have 5 curves and you should overlay them in one graph.
+
+```{r}
+# df1 <- gapminder %>% filter(year == 2007) %>% select(country, pop) %>% arrange(desc(pop)) %>% head(5)
+
+# df1
+# 1. China, 2. India, 3. United States, 4. Indonesia, 5. Brazil
+
+df <- gapminder %>% filter(country == "China" | country == "India" | country == "United States" | country == "Indonesia" | country == "Brazil") %>% 
+  select(country, year, lifeExp)    
+
+ggplot(df, aes(x = year, y = lifeExp, color = country))+
+  geom_line()+
+  labs(title = "MLE of Top five populated countries in 2007 from 1952 to 2007", color = 'Country')
+
+```
+
+### Summary Table 
+```{r}
+datatable(df)
+```
+
+
+> The line Graph and Table indicate that all the countries have experienced a drastic rise in the life expectancy over the years except the United States which experienced a slow rise with an already higher life expectancy.
+
+# Page 4 
+
+### (d) Summarize and plot the median life expectancy in each year for each continent. You should have one summary table and one plot.  Hint: Find the mean of MLE for each group determined by Year and Continent.
+
+```{r}
+df <- gapminder %>% select(continent, year, lifeExp) %>% 
+  group_by(continent, year) %>% summarize(lifeExp = mean(lifeExp))
+ggplot(df, aes(x = year, y = lifeExp, color = continent)) +
+  geom_line() +
+  labs(title = "Life expectancy of each continent over the period 1952 - 2007", color = 'Continent')
+
+```
+
+### Summary Table 
+```{r}
+datatable(df)
+```
+
+> The Graph and Table depict that Americas, Europe, and Oceania have experienced a smooth rise in the life expectancy over the years while Asia has experienced a continueus rise over the period. The life expectancy in Africa from 1952 climbed up until 1987 and from then afterwards it remained somehow still while it began to rise again from 2002 onwards. 
+
+
