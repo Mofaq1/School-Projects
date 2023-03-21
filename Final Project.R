@@ -7,11 +7,17 @@ library(dynamac)
 library(astsa)
 library(forecast)
 library(ggplot2)
+library(broom)
+library(sigr)
+library(vtreat)
+library(WVPlots)
+library(zoo)
+
+library(stats)
 
 
-
-
-mydata <- read_excel("/Users/mohibullahfaqeerzai/Desktop/Data.xlsx", sheet = "Spread" )
+# loading the data
+mydata <- read_excel("/Users/mohibullahfaqeerzai/Desktop/Culminating Project/Data.xlsx", sheet = "Spread" )
 head(mydata)
 attach(mydata)
 
@@ -71,8 +77,6 @@ ts_plot(indspr,
 )
 
 
-
-###################################################################
 ##################### Recession Plot #############################
 
 ts.plot(indspr, gpars= list(col=rainbow(8)), abline = 0, ylab = "Yield")
@@ -183,7 +187,6 @@ lag_T10Y3M <- lag(T10Y3M, k = 1)
 
 
 
-
 # regression
 
 reg1 <- lm(DINDPRO ~ lag_DT10Y3M)
@@ -212,40 +215,15 @@ screenreg(list(Regression8 = reg8, Regression9 = reg9),
 
 
 
-# from the results we can see that in simple regression the current value and one lag of the 
-# explanatory variables cannot explain the variation in our dependent variable (INDPRO) 
-# so it might take effect in longer than one lag so we need to use ARDL which will look at 
-# many lags impact on dependent variable.
+
+
 
 ################################### ARDL Model (2) ########################
-# 
-
-# In its basic form, an ARDL regression model looks like this:
-  
-#  yt = β0 + β1yt-1 + .......+ βpyt-p + α0xt + α1xt-1 + α2xt-2 + ......... + αqxt-q + εt
-
-# where εt is a random "disturbance" term.
 
 
 modelARDL <- dynardl(DINDPRO ~ DT10Y2Y + ShortTerm,
                   lags = list("DINDPRO" = 1, "DT10Y2Y" = c(1,3,6,9), "ShortTerm" = c(1,3,6,9)), # want to see all lags
-                  ec = FALSE) # if dependent variable is non stationary and want it in difference then it should be TRUE but here difference is already taken so we need it in levels
-
-
-summary(modelARDL)
-# the summary show that the conventional predictor (DT10Y2Y) and its historical values (lags) 
-# cannot explain the variation in economic growth so our new explanatory variable is much significant
-# and is much better than conventional one so it can replace the old one. 
-
-# lag 1 of DINDPRO is sig
-# lag 1 of DMterm is sig
-# lag 6 of DMterm is sig which can indicate some seasonality
-# all others are not significant
-
-
-
-# The summary show that one lag is optimal so we can use one lag in SARIMA
-
+                  ec = FALSE) 
 
 
 
@@ -270,7 +248,49 @@ modelSARIMA1$ttable
 modelSARIMA2 <- sarima(DINDPRO, p = 2, d = 0, q = 0, P = 0, D = 0, Q = 0, S = 0, 
                        xreg = cbind(lag_Sterm[-1], lag_DT10Y2Y, lag_DT10Y3M))
 summary(modelSARIMA2)
-# let's check out just the parameters using the different estimation methods
+
+#Plot the residuals
+ts_plot(modelSARIMA1$fit$residuals)
+ts_plot(modelSARIMA2$fit$residuals)
+
+modelSARIMA1$fit$residuals-modelSARIMA2$fit$residuals
+#Predicted value
+Pred1<-DINDPRO - modelSARIMA1$fit$residuals
+Pred2<-DINDPRO - modelSARIMA2$fit$residuals
+DINDPRO.ts<-ts(DINDPRO,start = c(1999,1),freq=12)
+Pred1<-ts(Pred1,start = c(1999,1),freq=12)
+Pred2<-ts(Pred2,start = c(1999,1),freq=12)
+data<-data.frame(DINDPRO.ts,Pred1,Pred2)
+
+#Pridict vs. actual plot
+
+ggplot(data, aes(x = Pred1, y = DINDPRO.ts)) + 
+  geom_point() + 
+  geom_abline()+
+  xlim(-10, 10) +
+  ylim(-10, 10)
+
+ggplot(data, aes(x = Pred2, y = DINDPRO.ts)) + 
+  geom_point() + 
+  geom_abline()+
+  xlim(-10, 10) +
+  ylim(-10, 10)
+
+
+#Gain curve
+GainCurvePlot(data, "DINDPRO.ts", "Pred1" , "Gain Curve Model 1", large_count = 400)
+GainCurvePlot(data, "DINDPRO.ts", "Pred2" , "Gain Curve Model 2", large_count = 400)
+
+#RMSE Comparison
+sqrt(sum(modelSARIMA1$fit$residuals^2))
+sqrt(sum(modelSARIMA2$fit$residuals^2))
+
+#R^2 
+1-sqrt(sum(modelSARIMA1$fit$residuals^2))/sqrt(sum((DINDPRO-mean(DINDPRO))^2))
+1-sqrt(sum(modelSARIMA2$fit$residuals^2))/sqrt(sum((DINDPRO-mean(DINDPRO))^2))
+
+
+# checking just the parameters using the different estimation methods
 
 # results
 modelSARIMA2$ttable
@@ -285,26 +305,4 @@ Forecast2 <- sarima.for(DINDPRO, p = 2, d = 0, q = 0, n.ahead = 12,
                         newxreg = cbind(lag_Sterm[-1], lag_DT10Y2Y, lag_DT10Y3M),
                         plot.all = TRUE)
 title(main = "Forecast2")
-
-
-
-
-
-########################
-
-demo_model <- auto.arima(DINDPRO)
-demo_model
-
-
-plot.ts(demo_model$residuals)
-
-demo_forecast <- forecast(demo_model, level = c(95), h = 10)
-plot(demo_forecast)
-
-
-
-
-
-
-
 
